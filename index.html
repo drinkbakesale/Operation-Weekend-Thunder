@@ -452,15 +452,6 @@
 </style>
 </head>
 <body>
-<!-- Hidden form for Netlify bot detection (never visible) -->
-<form name="weekend-thunder" netlify netlify-honeypot="bot-field" hidden>
-  <input name="bot-field">
-  <input name="codename">
-  <input name="realname">
-  <input name="preferred">
-  <input name="blocked">
-</form>
-
 <div class="bg-sky"></div>
 <div class="bg-silhouette"></div>
 <canvas id="particle-layer"></canvas>
@@ -474,10 +465,7 @@
 
   <div class="chrome-divider"></div>
 
-  <form id="mission-form" name="weekend-thunder" method="POST" data-netlify="true" netlify-honeypot="bot-field">
-    <p style="display:none"><input name="bot-field"></p>
-    <input type="hidden" name="preferred" id="h-preferred">
-    <input type="hidden" name="blocked" id="h-blocked">
+  <form id="mission-form">
 
     <!-- Codename -->
     <div class="form-section" style="position:relative;">
@@ -773,6 +761,11 @@
     });
   });
 
+  // ========== GOOGLE SHEETS CONFIG ==========
+  // Replace this with your Google Apps Script web app URL
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyWQuwG0wFNkAO6AdRhnRm7szB5pOf_dBM-E
+  N90VYi25KnVJakiiS0v791ppmFqXCk/exec';
+
   // ========== SUBMIT ==========
   document.getElementById('mission-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -808,48 +801,44 @@
     }
     screenShake();
 
-    // Populate hidden fields
-    document.getElementById('h-preferred').value = preferred.join(', ') || 'None';
-    document.getElementById('h-blocked').value = blocked.join(', ') || 'None';
-
     const spinner = document.getElementById('spinner');
     btn.disabled = true;
     btn.style.display = 'none';
     spinner.classList.add('visible');
 
-    const formData = new URLSearchParams();
-    formData.append('form-name', 'weekend-thunder');
-    formData.append('codename', codename);
-    formData.append('realname', realname);
-    formData.append('preferred', preferred.join(', ') || 'None');
-    formData.append('blocked', blocked.join(', ') || 'None');
+    const payload = {
+      codename: codename,
+      realname: realname,
+      preferred: preferred.join(', ') || 'None',
+      blocked: blocked.join(', ') || 'None',
+      timestamp: new Date().toLocaleString()
+    };
 
     try {
-      const response = await fetch('/', {
+      // Google Apps Script redirects, so we use no-cors mode.
+      // This means we can't read the response, but the data gets through.
+      await fetch(SCRIPT_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formData.toString()
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
 
-      if (response.ok) {
-        // Victory explosions across the screen
-        setTimeout(() => {
-          for (let i = 0; i < 8; i++) {
-            setTimeout(() => {
-              spawnExplosion(
-                Math.random() * window.innerWidth,
-                Math.random() * window.innerHeight * 0.7,
-                'big'
-              );
-            }, i * 200);
-          }
-        }, 300);
+      // Victory explosions across the screen
+      setTimeout(() => {
+        for (let i = 0; i < 8; i++) {
+          setTimeout(() => {
+            spawnExplosion(
+              Math.random() * window.innerWidth,
+              Math.random() * window.innerHeight * 0.7,
+              'big'
+            );
+          }, i * 200);
+        }
+      }, 300);
 
-        document.getElementById('mission-form').style.display = 'none';
-        document.getElementById('success').classList.add('visible');
-      } else {
-        throw new Error('Server error');
-      }
+      document.getElementById('mission-form').style.display = 'none';
+      document.getElementById('success').classList.add('visible');
     } catch (err) {
       alert('Transmission failed! Try again, soldier.');
       btn.disabled = false;
