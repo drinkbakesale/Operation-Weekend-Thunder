@@ -452,6 +452,15 @@
 </style>
 </head>
 <body>
+<!-- Hidden form for Netlify bot detection (never visible) -->
+<form name="weekend-thunder" netlify netlify-honeypot="bot-field" hidden>
+  <input name="bot-field">
+  <input name="codename">
+  <input name="realname">
+  <input name="preferred">
+  <input name="blocked">
+</form>
+
 <div class="bg-sky"></div>
 <div class="bg-silhouette"></div>
 <canvas id="particle-layer"></canvas>
