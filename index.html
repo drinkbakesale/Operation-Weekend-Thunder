@@ -166,6 +166,29 @@
     color: #fff;
   }
 
+  /* Text input */
+  input[type="text"] {
+    width: 100%;
+    padding: 14px 18px;
+    font-family: 'Russo One', sans-serif;
+    font-size: 1rem;
+    color: #fff;
+    background: rgba(40,10,0,0.85);
+    border: 2px solid #b5173b;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+
+  input[type="text"]::placeholder {
+    color: rgba(255,255,255,0.35);
+  }
+
+  input[type="text"]:focus {
+    border-color: #ff9e00;
+    box-shadow: 0 0 20px rgba(255,158,0,0.3);
+  }
+
   /* Checkbox grid */
   .weekend-grid {
     display: grid;
@@ -219,7 +242,7 @@
     transition: all 0.2s;
   }
 
-  /* Preferred (top 3) - gold/fire accent */
+  /* Preferred - gold/fire accent */
   .preferred .weekend-option input:checked + label.weekend-label {
     border-color: #ff9e00;
     background: rgba(255,158,0,0.2);
@@ -250,16 +273,6 @@
   .weekend-option label.weekend-label:hover {
     border-color: #b5173b;
     background: rgba(181,23,59,0.2);
-  }
-
-  /* EXPLOSION EFFECT (canvas overlay per checkbox) */
-  .explosion-canvas {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-    z-index: 10;
   }
 
   /* Screen shake */
@@ -454,12 +467,10 @@
 
   <form id="mission-form" name="weekend-thunder" method="POST" data-netlify="true" netlify-honeypot="bot-field">
     <p style="display:none"><input name="bot-field"></p>
-    <input type="hidden" name="preferred1" id="h-preferred1">
-    <input type="hidden" name="preferred2" id="h-preferred2">
-    <input type="hidden" name="preferred3" id="h-preferred3">
+    <input type="hidden" name="preferred" id="h-preferred">
     <input type="hidden" name="blocked" id="h-blocked">
 
-    <!-- Name -->
+    <!-- Codename -->
     <div class="form-section" style="position:relative;">
       <label for="codename">Identify Yourself, Soldier</label>
       <select id="codename" name="codename" required>
@@ -481,14 +492,19 @@
       <div class="muzzle-flash" id="codename-flash"></div>
     </div>
 
+    <!-- Real Name -->
+    <div class="form-section">
+      <label for="realname">What's Your Real Name, Hero?</label>
+      <input type="text" id="realname" name="realname" placeholder="Enter your actual name" required>
+    </div>
+
     <div class="chrome-divider"></div>
 
-    <!-- Preferred Weekends (Top 3) -->
+    <!-- Preferred Weekends -->
     <div class="form-section preferred">
-      <div class="section-label">Top 3 Preferred Weekends</div>
-      <div class="section-desc">Select exactly 3 weekends for the mission. Choose wisely.</div>
+      <div class="section-label">Preferred Weekends</div>
+      <div class="section-desc">Select the weekends that work best for you.</div>
       <div class="weekend-grid" id="preferred-grid"></div>
-      <div class="error-msg" id="preferred-error">You must select exactly 3 weekends, soldier.</div>
     </div>
 
     <div class="chrome-divider"></div>
@@ -505,6 +521,7 @@
     <div class="submit-wrap">
       <button type="submit" id="submit-btn">TRANSMIT INTEL</button>
       <div class="spinner" id="spinner"></div>
+      <div class="error-msg" id="submit-error"></div>
     </div>
   </form>
 
@@ -533,7 +550,7 @@
     constructor(x, y, type) {
       this.x = x;
       this.y = y;
-      this.type = type; // 'fire', 'spark', 'smoke', 'star'
+      this.type = type;
       this.life = 1;
 
       if (type === 'fire') {
@@ -573,10 +590,8 @@
       this.x += this.vx;
       this.y += this.vy;
       this.life -= this.decay;
-      this.vy += 0.1; // gravity
-      if (this.type === 'fire') {
-        this.size *= 0.97;
-      }
+      this.vy += 0.1;
+      if (this.type === 'fire') this.size *= 0.97;
     }
 
     draw() {
@@ -588,7 +603,6 @@
         ctx.rotate(this.rotation);
         this.rotation += this.rotSpeed;
         ctx.fillStyle = this.color;
-        // 4-point star
         const s = this.size;
         ctx.beginPath();
         for (let i = 0; i < 4; i++) {
@@ -607,14 +621,11 @@
         ctx.restore();
       } else {
         ctx.fillStyle = this.color;
-        if (this.type === 'smoke') {
-          ctx.globalAlpha = Math.max(0, this.life * 0.3);
-        }
+        if (this.type === 'smoke') ctx.globalAlpha = Math.max(0, this.life * 0.3);
         ctx.beginPath();
         ctx.arc(this.x, this.y, Math.max(0, this.size), 0, Math.PI * 2);
         ctx.fill();
 
-        // Glow for fire
         if (this.type === 'fire') {
           ctx.globalAlpha = Math.max(0, this.life * 0.3);
           ctx.beginPath();
@@ -661,10 +672,10 @@
     }
   }
 
-  function screenShake(intensity) {
+  function screenShake() {
     const container = document.getElementById('main-container');
     container.classList.remove('shake');
-    void container.offsetWidth; // reflow
+    void container.offsetWidth;
     container.classList.add('shake');
     setTimeout(() => container.classList.remove('shake'), 400);
   }
@@ -687,7 +698,7 @@
       const div = document.createElement('div');
       div.className = 'weekend-option';
       div.innerHTML = `
-        <input type="checkbox" id="${id}" name="${prefix}" value="${w.value}">
+        <input type="checkbox" id="${id}" name="${prefix}_cb" value="${w.value}">
         <label class="weekend-label" for="${id}">${w.label}</label>
       `;
       grid.appendChild(div);
@@ -706,7 +717,6 @@
     spawnExplosion(x, y, 'big');
     screenShake();
 
-    // Flash overlay
     const flash = document.getElementById('codename-flash');
     flash.style.left = (rect.width / 2 - 30) + 'px';
     flash.style.top = (rect.height / 2 - 30 + 40) + 'px';
@@ -730,37 +740,23 @@
     });
   }
 
-  // Preferred: gold explosion
-  addCheckboxEffects('preferred', 'small');
-
-  // Blocked: bigger red explosion
-  addCheckboxEffects('blocked', 'small');
-
-  // Enforce max 3 for preferred
-  document.querySelectorAll('input[name="preferred"]').forEach(cb => {
-    cb.addEventListener('change', () => {
-      const checked = document.querySelectorAll('input[name="preferred"]:checked');
-      if (checked.length > 3) {
-        cb.checked = false;
-      }
-      document.getElementById('preferred-error').classList.toggle('visible', false);
-    });
-  });
+  addCheckboxEffects('preferred_cb', 'small');
+  addCheckboxEffects('blocked_cb', 'small');
 
   // Prevent selecting same weekend as both preferred and blocked
-  document.querySelectorAll('input[name="preferred"]').forEach(cb => {
+  document.querySelectorAll('input[name="preferred_cb"]').forEach(cb => {
     cb.addEventListener('change', () => {
       if (cb.checked) {
-        const blocked = document.querySelector(`input[name="blocked"][value="${cb.value}"]`);
+        const blocked = document.querySelector(`input[name="blocked_cb"][value="${cb.value}"]`);
         if (blocked) blocked.checked = false;
       }
     });
   });
 
-  document.querySelectorAll('input[name="blocked"]').forEach(cb => {
+  document.querySelectorAll('input[name="blocked_cb"]').forEach(cb => {
     cb.addEventListener('change', () => {
       if (cb.checked) {
-        const preferred = document.querySelector(`input[name="preferred"][value="${cb.value}"]`);
+        const preferred = document.querySelector(`input[name="preferred_cb"][value="${cb.value}"]`);
         if (preferred) preferred.checked = false;
       }
     });
@@ -771,12 +767,21 @@
     e.preventDefault();
 
     const codename = document.getElementById('codename').value;
-    const preferred = [...document.querySelectorAll('input[name="preferred"]:checked')].map(c => c.value);
-    const blocked = [...document.querySelectorAll('input[name="blocked"]:checked')].map(c => c.value);
+    const realname = document.getElementById('realname').value.trim();
+    const preferred = [...document.querySelectorAll('input[name="preferred_cb"]:checked')].map(c => c.value);
+    const blocked = [...document.querySelectorAll('input[name="blocked_cb"]:checked')].map(c => c.value);
+    const errorEl = document.getElementById('submit-error');
 
-    if (!codename) { alert('Select your codename, soldier!'); return; }
-    if (preferred.length !== 3) {
-      document.getElementById('preferred-error').classList.add('visible');
+    // Validate
+    errorEl.classList.remove('visible');
+    if (!codename) {
+      errorEl.textContent = 'Select your codename, soldier!';
+      errorEl.classList.add('visible');
+      return;
+    }
+    if (!realname) {
+      errorEl.textContent = 'We need your real name, hero!';
+      errorEl.classList.add('visible');
       return;
     }
 
@@ -792,9 +797,8 @@
     }
     screenShake();
 
-    document.getElementById('h-preferred1').value = preferred[0];
-    document.getElementById('h-preferred2').value = preferred[1];
-    document.getElementById('h-preferred3').value = preferred[2];
+    // Populate hidden fields
+    document.getElementById('h-preferred').value = preferred.join(', ') || 'None';
     document.getElementById('h-blocked').value = blocked.join(', ') || 'None';
 
     const spinner = document.getElementById('spinner');
@@ -805,9 +809,8 @@
     const formData = new URLSearchParams();
     formData.append('form-name', 'weekend-thunder');
     formData.append('codename', codename);
-    formData.append('preferred1', preferred[0]);
-    formData.append('preferred2', preferred[1]);
-    formData.append('preferred3', preferred[2]);
+    formData.append('realname', realname);
+    formData.append('preferred', preferred.join(', ') || 'None');
     formData.append('blocked', blocked.join(', ') || 'None');
 
     try {
